@@ -1,0 +1,6 @@
+{
+  "name": "Mosaic Scratch Simulation",
+  "description": "A highly polished, mesmerizing 9:16 vertical animation of a glowing ball bouncing inside a circle, scratching away thousands of tiny mosaic tiles on a grid to reveal a pure black background. Complete with audio synthesis, particle effects, and velocity progression.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
