@@ -25,8 +25,19 @@ export default function App() {
   const [boosterPower, setBoosterPower] = useState<number>(1.4);
   const [isPaused, setIsPaused] = useState<boolean>(false);
 
+  // Ball Size and Dynamic Growth Settings
+  const [initialBallRadius, setInitialBallRadius] = useState<number>(16);
+  const [growBallOnBooster, setGrowBallOnBooster] = useState<boolean>(false);
+  const [ballGrowthType, setBallGrowthType] = useState<'additive' | 'multiplicative'>('additive');
+  const [ballGrowthAmount, setBallGrowthAmount] = useState<number>(2.0);
+  const [ballGrowthMultiplier, setBallGrowthMultiplier] = useState<number>(1.1);
+  const [maxBallRadius, setMaxBallRadius] = useState<number>(50);
+
   // Custom visual caption variables
   const [topHookText, setTopHookText] = useState<string>("CAN IT HIT 100%?");
+  const [levelNumber, setLevelNumber] = useState<string>("01");
+  const [levelName, setLevelName] = useState<string>("NEON GRID");
+  const [levelFont, setLevelFont] = useState<string>("Outfit");
   const [comments, setComments] = useState({
     range0_25: "Wait for the end! 😱",
     range25_50: "Looking good! 😉",
@@ -47,6 +58,37 @@ export default function App() {
     speedMultiplier: 1.0,
     impactCount: 0
   });
+  
+  // Synchronize top caption settings when Minecraft theme is selected
+  React.useEffect(() => {
+    if (palette.key === 'minecraft') {
+      setTopHookText("ONE BALL. ENDLESS DESTRUCTION.");
+      setLevelNumber("64");
+      setLevelName("CRAFT WORLD");
+      setLevelFont("Press Start 2P");
+      setComments({
+        range0_25: "Mining diamonds... 💎",
+        range25_50: "Creeper? Aw man... 💚",
+        range50_75: "Sssss... watch out! 🧨",
+        range75_90: "ALMOST CLEARED!!! 🔥",
+        range90_99: "DON'T LOOK AT THE ENDERMAN! 💜",
+        range100: "MINECRAFT WORLD SAVED! 🏆"
+      });
+    } else {
+      setTopHookText("CAN IT HIT 100%?");
+      setLevelNumber("01");
+      setLevelName("NEON GRID");
+      setLevelFont("Outfit");
+      setComments({
+        range0_25: "Wait for the end! 😱",
+        range25_50: "Looking good! 😉",
+        range50_75: "Keep watching... 👀",
+        range75_90: "So close! 😱",
+        range90_99: "ALMOST FINISHED!!! 🔥",
+        range100: "PERFECT CALM! 🎉"
+      });
+    }
+  }, [palette]);
 
   // 4K Video Recording States
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -104,15 +146,14 @@ export default function App() {
       }
 
       // Determine matching mime types
-      let selectedMimeType = 'video/webm;codecs=vp9';
-      if (MediaRecorder.isTypeSupported('video/mp4')) {
-        selectedMimeType = 'video/mp4;codecs=h264';
-      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-        selectedMimeType = 'video/webm;codecs=h264';
-      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        selectedMimeType = 'video/webm;codecs=vp9';
-      } else if (MediaRecorder.isTypeSupported('video/webm')) {
-        selectedMimeType = 'video/webm';
+      let selectedMimeType = "video/webm;codecs=vp9";
+
+      if (MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")) {
+        selectedMimeType = "video/mp4;codecs=avc1";
+      } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+        selectedMimeType = "video/webm;codecs=vp9";
+      } else {
+        selectedMimeType = "video/webm";
       }
 
       try {
@@ -283,8 +324,17 @@ export default function App() {
               boosterPower={boosterPower}
               isPaused={isPaused}
               topHookText={topHookText}
+              levelNumber={levelNumber}
+              levelName={levelName}
+              levelFont={levelFont}
               comments={comments}
               resolutionScale={resolutionScale}
+              initialBallRadius={initialBallRadius}
+              growBallOnBooster={growBallOnBooster}
+              ballGrowthType={ballGrowthType}
+              ballGrowthAmount={ballGrowthAmount}
+              ballGrowthMultiplier={ballGrowthMultiplier}
+              maxBallRadius={maxBallRadius}
             />
           </PhoneMockup>
         </div>
@@ -325,6 +375,12 @@ export default function App() {
           onClearAll={handleClearAll}
           topHookText={topHookText}
           onTopHookTextChange={setTopHookText}
+          levelNumber={levelNumber}
+          onLevelNumberChange={setLevelNumber}
+          levelName={levelName}
+          onLevelNameChange={setLevelName}
+          levelFont={levelFont}
+          onLevelFontChange={setLevelFont}
           comments={comments}
           onCommentsChange={setComments}
           isRecording={isRecording}
@@ -337,6 +393,18 @@ export default function App() {
           onRecordingFpsChange={setRecordingFps}
           recordingBitrate={recordingBitrate}
           onRecordingBitrateChange={setRecordingBitrate}
+          initialBallRadius={initialBallRadius}
+          onInitialBallRadiusChange={setInitialBallRadius}
+          growBallOnBooster={growBallOnBooster}
+          onGrowBallOnBoosterChange={setGrowBallOnBooster}
+          ballGrowthType={ballGrowthType}
+          onBallGrowthTypeChange={setBallGrowthType}
+          ballGrowthAmount={ballGrowthAmount}
+          onBallGrowthAmountChange={setBallGrowthAmount}
+          ballGrowthMultiplier={ballGrowthMultiplier}
+          onBallGrowthMultiplierChange={setBallGrowthMultiplier}
+          maxBallRadius={maxBallRadius}
+          onMaxBallRadiusChange={setMaxBallRadius}
         />
       </div>
 

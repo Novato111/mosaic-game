@@ -5,7 +5,7 @@ export interface Palette {
   glowColor: string;
   ballColor: string;
   boosterColor: string;
-  type: 'radial' | 'linear-y' | 'linear-x' | 'angular' | 'random';
+  type: 'radial' | 'linear-y' | 'linear-x' | 'angular' | 'random' | 'custom';
 }
 
 export interface SimulationConfig {

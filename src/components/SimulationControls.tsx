@@ -39,6 +39,12 @@ interface SimulationControlsProps {
   onClearAll: () => void;
   topHookText: string;
   onTopHookTextChange: (text: string) => void;
+  levelNumber: string;
+  onLevelNumberChange: (levelNum: string) => void;
+  levelName: string;
+  onLevelNameChange: (levelName: string) => void;
+  levelFont: string;
+  onLevelFontChange: (font: string) => void;
   comments: {
     range0_25: string;
     range25_50: string;
@@ -65,6 +71,18 @@ interface SimulationControlsProps {
   onRecordingFpsChange: (fps: 30 | 60) => void;
   recordingBitrate: number;
   onRecordingBitrateChange: (bitrate: number) => void;
+  initialBallRadius: number;
+  onInitialBallRadiusChange: (radius: number) => void;
+  growBallOnBooster: boolean;
+  onGrowBallOnBoosterChange: (grow: boolean) => void;
+  ballGrowthType: 'additive' | 'multiplicative';
+  onBallGrowthTypeChange: (type: 'additive' | 'multiplicative') => void;
+  ballGrowthAmount: number;
+  onBallGrowthAmountChange: (amount: number) => void;
+  ballGrowthMultiplier: number;
+  onBallGrowthMultiplierChange: (multiplier: number) => void;
+  maxBallRadius: number;
+  onMaxBallRadiusChange: (max: number) => void;
 }
 
 export const SimulationControls: React.FC<SimulationControlsProps> = ({
@@ -94,6 +112,12 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   onClearAll,
   topHookText,
   onTopHookTextChange,
+  levelNumber,
+  onLevelNumberChange,
+  levelName,
+  onLevelNameChange,
+  levelFont,
+  onLevelFontChange,
   comments,
   onCommentsChange,
   isRecording,
@@ -105,7 +129,19 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   recordingFps,
   onRecordingFpsChange,
   recordingBitrate,
-  onRecordingBitrateChange
+  onRecordingBitrateChange,
+  initialBallRadius,
+  onInitialBallRadiusChange,
+  growBallOnBooster,
+  onGrowBallOnBoosterChange,
+  ballGrowthType,
+  onBallGrowthTypeChange,
+  ballGrowthAmount,
+  onBallGrowthAmountChange,
+  ballGrowthMultiplier,
+  onBallGrowthMultiplierChange,
+  maxBallRadius,
+  onMaxBallRadiusChange
 }) => {
 
   const formatTime = (secs: number) => {
@@ -371,12 +407,192 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
         </div>
       </div>
 
+      {/* BALL SIZE & GROWTH MECHANICS */}
+      <div className="space-y-4 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/60">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center">
+          <Circle size={13} className="mr-1.5 text-sky-400 fill-sky-400/20" />
+          Ball Size & Growth Mechanics
+        </h2>
+
+        <div className="space-y-3.5">
+          {/* Initial Ball Radius */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[11px]">
+              <span className="text-zinc-400">Initial Ball Size</span>
+              <span className="font-mono text-white font-bold">{initialBallRadius}px</span>
+            </div>
+            <input 
+              type="range"
+              min="10"
+              max="40"
+              step="1"
+              value={initialBallRadius}
+              onChange={(e) => onInitialBallRadiusChange(parseInt(e.target.value))}
+              className="w-full accent-sky-400 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+            />
+          </div>
+
+          {/* Grow on Booster Hit toggle switch */}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-zinc-400">Grow on Booster Hit</span>
+            <button
+              onClick={() => onGrowBallOnBoosterChange(!growBallOnBooster)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                growBallOnBooster ? 'bg-sky-500' : 'bg-zinc-800'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  growBallOnBooster ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Conditional Growth Configs */}
+          {growBallOnBooster && (
+            <div className="space-y-3 pt-2.5 border-t border-zinc-800/40">
+              {/* Growth Type Selection */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Growth Method</span>
+                <div className="grid grid-cols-2 gap-1 p-0.5 bg-zinc-900/80 rounded-lg border border-zinc-800">
+                  <button
+                    onClick={() => onBallGrowthTypeChange('additive')}
+                    className={`py-1 text-[10px] font-bold rounded transition-all ${
+                      ballGrowthType === 'additive'
+                        ? 'bg-sky-500 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Addition (+)
+                  </button>
+                  <button
+                    onClick={() => onBallGrowthTypeChange('multiplicative')}
+                    className={`py-1 text-[10px] font-bold rounded transition-all ${
+                      ballGrowthType === 'multiplicative'
+                        ? 'bg-sky-500 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Multiplication (×)
+                  </button>
+                </div>
+              </div>
+
+              {/* Ball Growth Input */}
+              {ballGrowthType === 'additive' ? (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-zinc-400">Growth per Hit</span>
+                    <span className="font-mono text-white font-bold">+{ballGrowthAmount.toFixed(1)}px</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0.5"
+                    max="10.0"
+                    step="0.1"
+                    value={ballGrowthAmount}
+                    onChange={(e) => onBallGrowthAmountChange(parseFloat(e.target.value))}
+                    className="w-full accent-sky-400 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-zinc-400">Growth Multiplier</span>
+                    <span className="font-mono text-white font-bold">{ballGrowthMultiplier.toFixed(2)}x</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="1.01"
+                    max="2.50"
+                    step="0.01"
+                    value={ballGrowthMultiplier}
+                    onChange={(e) => onBallGrowthMultiplierChange(parseFloat(e.target.value))}
+                    className="w-full accent-sky-400 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                  />
+                </div>
+              )}
+
+              {/* Max Ball Size Limit */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400">Maximum Size Cap</span>
+                  <span className="font-mono text-white font-bold">{maxBallRadius}px</span>
+                </div>
+                <input 
+                  type="range"
+                  min="20"
+                  max="150"
+                  step="2"
+                  value={maxBallRadius}
+                  onChange={(e) => onMaxBallRadiusChange(parseInt(e.target.value))}
+                  className="w-full accent-sky-400 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* SHORTS ENGAGEMENT HOOKS PANEL */}
       <div className="space-y-4 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/60">
         <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center">
           <Eye size={13} className="mr-1.5 text-red-400" />
           Viral Scroll-Stopping Captions
         </h2>
+
+        {/* Level Number & Level Name input */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+              Level
+            </label>
+            <input 
+              type="text"
+              value={levelNumber}
+              onChange={(e) => onLevelNumberChange(e.target.value)}
+              placeholder="01"
+              maxLength={5}
+              className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white px-3 py-2 rounded-xl focus:border-zinc-500 focus:outline-none transition font-sans text-center"
+            />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+              Level Name
+            </label>
+            <input 
+              type="text"
+              value={levelName}
+              onChange={(e) => onLevelNameChange(e.target.value)}
+              placeholder="NEON GRID"
+              className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white px-3 py-2 rounded-xl focus:border-zinc-500 focus:outline-none transition font-sans"
+            />
+          </div>
+        </div>
+
+        {/* Level Font selector */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+            Level Text Font (Gamified Styles)
+          </label>
+          <select
+            value={levelFont}
+            onChange={(e) => onLevelFontChange(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 transition cursor-pointer"
+          >
+            <option value="Outfit">Outfit (Clean Minimalist Tech)</option>
+            <option value="Bebas Neue">Bebas Neue (Chunky Condensed)</option>
+            <option value="Orbitron">Orbitron (Futuristic Sci-Fi)</option>
+            <option value="Press Start 2P">Press Start 2P (Retro 8-Bit Arcade)</option>
+            <option value="Rubik Mono One">Rubik Mono One (Chunky Blocky)</option>
+            <option value="Bungee">Bungee (Chunky Rounded Arcade)</option>
+            <option value="Syncopate">Syncopate (Wide Spaced Futuristic)</option>
+            <option value="Russo One">Russo One (Cyber / Gaming)</option>
+            <option value="Anton">Anton (Ultra-Condensed Impact)</option>
+            <option value="Permanent Marker">Permanent Marker (Graffiti / Handwritten)</option>
+          </select>
+        </div>
 
         {/* Top hook input */}
         <div className="space-y-1.5">
