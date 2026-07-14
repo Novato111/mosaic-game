@@ -7,12 +7,19 @@ import React, { useState, useRef } from 'react';
 import { PALETTES } from './palettes';
 import { Palette, SimulationStats, TimelinePhase } from './types';
 import { ShortsCanvas, ShortsCanvasRef } from './components/ShortsCanvas';
+import { GrowingLoopCanvas, GrowingLoopCanvasRef } from './components/GrowingLoopCanvas';
 import { PhoneMockup } from './components/PhoneMockup';
 import { SimulationControls } from './components/SimulationControls';
+import { LoopControls } from './components/LoopControls';
 import { Sparkles, Youtube, Play, Pause, RefreshCw, Zap } from 'lucide-react';
 import { audioSynth } from './audio';
 
 export default function App() {
+  // Mode Selection: 'scratch' (classic) vs 'loop' (growing loop)
+  const [simulationMode, setSimulationMode] = useState<'scratch' | 'loop'>('scratch');
+  const [growthSpeed, setGrowthSpeed] = useState<number>(120);
+  const [autoCyclePalette, setAutoCyclePalette] = useState<boolean>(true);
+
   // State variables for controlling simulation
   const [palette, setPalette] = useState<Palette>(PALETTES[0]); // Starts with Rainbow
   const [tileDensity, setTileDensity] = useState<'low' | 'medium' | 'high' | 'ultra'>('medium');
@@ -105,6 +112,7 @@ export default function App() {
 
   // Reference to call canvas actions directly
   const canvasRef = useRef<ShortsCanvasRef | null>(null);
+  const loopCanvasRef = useRef<GrowingLoopCanvasRef | null>(null);
 
   // 4K Video Recording Handler Functions
   const handleStartRecording = () => {
@@ -231,22 +239,40 @@ export default function App() {
 
   // Restart trigger helper
   const handleRestart = () => {
-    if (canvasRef.current) {
-      canvasRef.current.restart();
+    if (simulationMode === 'scratch') {
+      if (canvasRef.current) {
+        canvasRef.current.restart();
+      }
+    } else {
+      if (loopCanvasRef.current) {
+        loopCanvasRef.current.restart();
+      }
     }
   };
 
   // Immediate boost force helper
   const handleTriggerBoost = () => {
-    if (canvasRef.current) {
-      canvasRef.current.triggerManualBoost();
+    if (simulationMode === 'scratch') {
+      if (canvasRef.current) {
+        canvasRef.current.triggerManualBoost();
+      }
+    } else {
+      if (loopCanvasRef.current) {
+        loopCanvasRef.current.triggerManualZoomOut();
+      }
     }
   };
 
   // Immediate clear grid helper
   const handleClearAll = () => {
-    if (canvasRef.current) {
-      canvasRef.current.clearAllTiles();
+    if (simulationMode === 'scratch') {
+      if (canvasRef.current) {
+        canvasRef.current.clearAllTiles();
+      }
+    } else {
+      if (loopCanvasRef.current) {
+        loopCanvasRef.current.clearAllTiles();
+      }
     }
   };
 
@@ -301,6 +327,36 @@ export default function App() {
           </div>
         </div>
 
+        {/* Simulation Mode Selector Tab Bar */}
+        <div className="flex bg-zinc-900/65 border border-zinc-800/70 p-1 rounded-2xl w-full max-w-lg shadow-lg">
+          <button
+            onClick={() => {
+              setSimulationMode('scratch');
+              setIsPaused(false);
+            }}
+            className={`flex-1 py-2 text-xs font-black tracking-wider uppercase rounded-xl transition cursor-pointer ${
+              simulationMode === 'scratch'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Classic Scratch
+          </button>
+          <button
+            onClick={() => {
+              setSimulationMode('loop');
+              setIsPaused(false);
+            }}
+            className={`flex-1 py-2 text-xs font-black tracking-wider uppercase rounded-xl transition cursor-pointer ${
+              simulationMode === 'loop'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Endless Loop
+          </button>
+        </div>
+
         {/* Dynamic Center Stage: Smartphone Container */}
         <div className="flex-1 w-full flex items-center justify-center py-2 max-h-[80vh]">
           <PhoneMockup
@@ -309,33 +365,54 @@ export default function App() {
             isRecording={isRecording}
             recordingSeconds={recordingSeconds}
           >
-            <ShortsCanvas
-              ref={canvasRef}
-              palette={palette}
-              tileDensity={tileDensity}
-              isMuted={isMuted}
-              volume={volume}
-              autoProgression={autoProgression}
-              manualSpeedMultiplier={manualSpeedMultiplier}
-              onStatsChange={setStats}
-              selectedPhase={selectedPhase}
-              onPhaseChange={handlePhaseChange}
-              scratchRadiusFactor={scratchRadiusFactor}
-              boosterPower={boosterPower}
-              isPaused={isPaused}
-              topHookText={topHookText}
-              levelNumber={levelNumber}
-              levelName={levelName}
-              levelFont={levelFont}
-              comments={comments}
-              resolutionScale={resolutionScale}
-              initialBallRadius={initialBallRadius}
-              growBallOnBooster={growBallOnBooster}
-              ballGrowthType={ballGrowthType}
-              ballGrowthAmount={ballGrowthAmount}
-              ballGrowthMultiplier={ballGrowthMultiplier}
-              maxBallRadius={maxBallRadius}
-            />
+            {simulationMode === 'scratch' ? (
+              <ShortsCanvas
+                ref={canvasRef}
+                palette={palette}
+                tileDensity={tileDensity}
+                isMuted={isMuted}
+                volume={volume}
+                autoProgression={autoProgression}
+                manualSpeedMultiplier={manualSpeedMultiplier}
+                onStatsChange={setStats}
+                selectedPhase={selectedPhase}
+                onPhaseChange={handlePhaseChange}
+                scratchRadiusFactor={scratchRadiusFactor}
+                boosterPower={boosterPower}
+                isPaused={isPaused}
+                topHookText={topHookText}
+                levelNumber={levelNumber}
+                levelName={levelName}
+                levelFont={levelFont}
+                comments={comments}
+                resolutionScale={resolutionScale}
+                initialBallRadius={initialBallRadius}
+                growBallOnBooster={growBallOnBooster}
+                ballGrowthType={ballGrowthType}
+                ballGrowthAmount={ballGrowthAmount}
+                ballGrowthMultiplier={ballGrowthMultiplier}
+                maxBallRadius={maxBallRadius}
+              />
+            ) : (
+              <GrowingLoopCanvas
+                ref={loopCanvasRef}
+                palette={palette}
+                tileDensity={tileDensity}
+                isMuted={isMuted}
+                volume={volume}
+                growthSpeed={growthSpeed}
+                autoCyclePalette={autoCyclePalette}
+                onPaletteCycle={setPalette}
+                isPaused={isPaused}
+                onStatsChange={setStats}
+                topHookText={topHookText}
+                levelNumber={levelNumber}
+                levelName={levelName}
+                levelFont={levelFont}
+                comments={comments}
+                resolutionScale={resolutionScale}
+              />
+            )}
           </PhoneMockup>
         </div>
 
@@ -348,64 +425,107 @@ export default function App() {
 
       {/* RIGHT SIDEBAR (Interactive Configuration Controls) */}
       <div className="w-full md:w-[410px] xl:w-[450px] shrink-0 border-t md:border-t-0 md:border-l border-zinc-800 bg-zinc-900/40 h-auto md:h-screen flex flex-col shadow-2xl">
-        <SimulationControls
-          currentPalette={palette}
-          onPaletteChange={setPalette}
-          tileDensity={tileDensity}
-          onTileDensityChange={setTileDensity}
-          isMuted={isMuted}
-          onMuteChange={setIsMuted}
-          volume={volume}
-          onVolumeChange={setVolume}
-          autoProgression={autoProgression}
-          onAutoProgressionChange={setAutoProgression}
-          selectedPhase={selectedPhase}
-          onPhaseChange={setSelectedPhase}
-          manualSpeedMultiplier={manualSpeedMultiplier}
-          onSpeedMultiplierChange={setManualSpeedMultiplier}
-          scratchRadiusFactor={scratchRadiusFactor}
-          onScratchRadiusChange={setScratchRadiusFactor}
-          boosterPower={boosterPower}
-          onBoosterPowerChange={setBoosterPower}
-          stats={stats}
-          isPaused={isPaused}
-          onPauseToggle={() => setIsPaused(prev => !prev)}
-          onRestart={handleRestart}
-          onTriggerBoost={handleTriggerBoost}
-          onClearAll={handleClearAll}
-          topHookText={topHookText}
-          onTopHookTextChange={setTopHookText}
-          levelNumber={levelNumber}
-          onLevelNumberChange={setLevelNumber}
-          levelName={levelName}
-          onLevelNameChange={setLevelName}
-          levelFont={levelFont}
-          onLevelFontChange={setLevelFont}
-          comments={comments}
-          onCommentsChange={setComments}
-          isRecording={isRecording}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-          recordingSeconds={recordingSeconds}
-          recordingPreset={recordingPreset}
-          onRecordingPresetChange={setRecordingPreset}
-          recordingFps={recordingFps}
-          onRecordingFpsChange={setRecordingFps}
-          recordingBitrate={recordingBitrate}
-          onRecordingBitrateChange={setRecordingBitrate}
-          initialBallRadius={initialBallRadius}
-          onInitialBallRadiusChange={setInitialBallRadius}
-          growBallOnBooster={growBallOnBooster}
-          onGrowBallOnBoosterChange={setGrowBallOnBooster}
-          ballGrowthType={ballGrowthType}
-          onBallGrowthTypeChange={setBallGrowthType}
-          ballGrowthAmount={ballGrowthAmount}
-          onBallGrowthAmountChange={setBallGrowthAmount}
-          ballGrowthMultiplier={ballGrowthMultiplier}
-          onBallGrowthMultiplierChange={setBallGrowthMultiplier}
-          maxBallRadius={maxBallRadius}
-          onMaxBallRadiusChange={setMaxBallRadius}
-        />
+        {simulationMode === 'scratch' ? (
+          <SimulationControls
+            currentPalette={palette}
+            onPaletteChange={setPalette}
+            tileDensity={tileDensity}
+            onTileDensityChange={setTileDensity}
+            isMuted={isMuted}
+            onMuteChange={setIsMuted}
+            volume={volume}
+            onVolumeChange={setVolume}
+            autoProgression={autoProgression}
+            onAutoProgressionChange={setAutoProgression}
+            selectedPhase={selectedPhase}
+            onPhaseChange={setSelectedPhase}
+            manualSpeedMultiplier={manualSpeedMultiplier}
+            onSpeedMultiplierChange={setManualSpeedMultiplier}
+            scratchRadiusFactor={scratchRadiusFactor}
+            onScratchRadiusChange={setScratchRadiusFactor}
+            boosterPower={boosterPower}
+            onBoosterPowerChange={setBoosterPower}
+            stats={stats}
+            isPaused={isPaused}
+            onPauseToggle={() => setIsPaused(prev => !prev)}
+            onRestart={handleRestart}
+            onTriggerBoost={handleTriggerBoost}
+            onClearAll={handleClearAll}
+            topHookText={topHookText}
+            onTopHookTextChange={setTopHookText}
+            levelNumber={levelNumber}
+            onLevelNumberChange={setLevelNumber}
+            levelName={levelName}
+            onLevelNameChange={setLevelName}
+            levelFont={levelFont}
+            onLevelFontChange={setLevelFont}
+            comments={comments}
+            onCommentsChange={setComments}
+            isRecording={isRecording}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            recordingSeconds={recordingSeconds}
+            recordingPreset={recordingPreset}
+            onRecordingPresetChange={setRecordingPreset}
+            recordingFps={recordingFps}
+            onRecordingFpsChange={setRecordingFps}
+            recordingBitrate={recordingBitrate}
+            onRecordingBitrateChange={setRecordingBitrate}
+            initialBallRadius={initialBallRadius}
+            onInitialBallRadiusChange={setInitialBallRadius}
+            growBallOnBooster={growBallOnBooster}
+            onGrowBallOnBoosterChange={setGrowBallOnBooster}
+            ballGrowthType={ballGrowthType}
+            onBallGrowthTypeChange={setBallGrowthType}
+            ballGrowthAmount={ballGrowthAmount}
+            onBallGrowthAmountChange={setBallGrowthAmount}
+            ballGrowthMultiplier={ballGrowthMultiplier}
+            onBallGrowthMultiplierChange={setBallGrowthMultiplier}
+            maxBallRadius={maxBallRadius}
+            onMaxBallRadiusChange={setMaxBallRadius}
+          />
+        ) : (
+          <LoopControls
+            currentPalette={palette}
+            onPaletteChange={setPalette}
+            tileDensity={tileDensity}
+            onTileDensityChange={setTileDensity}
+            isMuted={isMuted}
+            onMuteChange={setIsMuted}
+            volume={volume}
+            onVolumeChange={setVolume}
+            growthSpeed={growthSpeed}
+            onGrowthSpeedChange={setGrowthSpeed}
+            autoCyclePalette={autoCyclePalette}
+            onAutoCyclePaletteChange={setAutoCyclePalette}
+            stats={stats}
+            isPaused={isPaused}
+            onPauseToggle={() => setIsPaused(prev => !prev)}
+            onRestart={handleRestart}
+            onTriggerBoost={handleTriggerBoost}
+            onClearAll={handleClearAll}
+            topHookText={topHookText}
+            onTopHookTextChange={setTopHookText}
+            levelNumber={levelNumber}
+            onLevelNumberChange={setLevelNumber}
+            levelName={levelName}
+            onLevelNameChange={setLevelName}
+            levelFont={levelFont}
+            onLevelFontChange={setLevelFont}
+            comments={comments}
+            onCommentsChange={setComments}
+            isRecording={isRecording}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            recordingSeconds={recordingSeconds}
+            recordingPreset={recordingPreset}
+            onRecordingPresetChange={setRecordingPreset}
+            recordingFps={recordingFps}
+            onRecordingFpsChange={setRecordingFps}
+            recordingBitrate={recordingBitrate}
+            onRecordingBitrateChange={setRecordingBitrate}
+          />
+        )}
       </div>
 
     </div>
