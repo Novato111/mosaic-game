@@ -39,6 +39,7 @@ export default function App() {
   const [ballGrowthAmount, setBallGrowthAmount] = useState<number>(2.0);
   const [ballGrowthMultiplier, setBallGrowthMultiplier] = useState<number>(1.1);
   const [maxBallRadius, setMaxBallRadius] = useState<number>(50);
+  const [startEmpty, setStartEmpty] = useState<boolean>(true);
 
   // Custom visual caption variables
   const [topHookText, setTopHookText] = useState<string>("CAN IT HIT 100%?");
@@ -392,6 +393,7 @@ export default function App() {
                 ballGrowthAmount={ballGrowthAmount}
                 ballGrowthMultiplier={ballGrowthMultiplier}
                 maxBallRadius={maxBallRadius}
+                startEmpty={startEmpty}
               />
             ) : (
               <GrowingLoopCanvas
@@ -483,6 +485,8 @@ export default function App() {
             onBallGrowthMultiplierChange={setBallGrowthMultiplier}
             maxBallRadius={maxBallRadius}
             onMaxBallRadiusChange={setMaxBallRadius}
+            startEmpty={startEmpty}
+            onStartEmptyChange={setStartEmpty}
           />
         ) : (
           <LoopControls

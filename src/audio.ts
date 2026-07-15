@@ -11,48 +11,87 @@ class AudioSynthesizer {
   private lastScratchTime: number = 0;
   private bounceNoteIndex: number = 0;
 
-  // A beautiful, relaxing classical-piano arpeggio progression:
-  // Cmaj9 -> Am9 -> Fmaj7 -> G6
+  // Famous, beautiful Pachelbel's Canon in D Major arpeggiated arpeggio loop:
   private readonly pianoNotes: number[] = [
-    // Phrase 1: C Major 9 (Atmospheric, open)
-    261.63, // C4
-    329.63, // E4
-    392.00, // G4
-    493.88, // B4
-    587.33, // D5
-    392.00, // G4
-    329.63, // E4
-    261.63, // C4
-
-    // Phrase 2: A Minor 9 (Slightly introspective, warm)
+    // 1. D Major (Uplifting, warm)
+    146.83, // D3 (Bass)
     220.00, // A3
-    261.63, // C4
-    329.63, // E4
-    392.00, // G4
+    293.66, // D4
+    369.99, // F#4
     440.00, // A4
-    523.25, // C5
-    392.00, // G4
-    329.63, // E4
-
-    // Phrase 3: F Major 7 (Lush, uplifting, rich)
-    174.61, // F3
-    261.63, // C4
-    349.23, // F4
-    440.00, // A4
-    523.25, // C5
     587.33, // D5
-    440.00, // A4
-    349.23, // F4
+    369.99, // F#4
+    293.66, // D4
 
-    // Phrase 4: G6 / G Suspended (Resolving, gentle)
+    // 2. A Major (Gentle, bright)
+    110.00, // A2 (Bass)
+    164.81, // E3
+    220.00, // A3
+    277.18, // C#4
+    329.63, // E4
+    440.00, // A4
+    277.18, // C#4
+    220.00, // A3
+
+    // 3. B Minor (Introspective, rich)
+    123.47, // B2 (Bass)
+    185.00, // F#3
+    246.94, // B3
+    293.66, // D4
+    369.99, // F#4
+    493.88, // B4
+    293.66, // D4
+    246.94, // B3
+
+    // 4. F# Minor (Melancholy, deep)
+    92.50,  // F#2 (Bass)
+    138.59, // C#3
+    185.00, // F#3
+    220.00, // A3
+    277.18, // C#4
+    369.99, // F#4
+    220.00, // A3
+    185.00, // F#3
+
+    // 5. G Major (Uplifting, hopeful)
+    98.00,  // G2 (Bass)
+    146.83, // D3
     196.00, // G3
+    246.94, // B3
     293.66, // D4
     392.00, // G4
+    246.94, // B3
+    196.00, // G3
+
+    // 6. D Major (Familiar theme)
+    146.83, // D3 (Bass)
+    220.00, // A3
+    293.66, // D4
+    369.99, // F#4
     440.00, // A4
-    493.88, // B4
     587.33, // D5
-    659.25, // E5
-    493.88, // B4
+    369.99, // F#4
+    293.66, // D4
+
+    // 7. G Major (Warm transition)
+    98.00,  // G2 (Bass)
+    146.83, // D3
+    196.00, // G3
+    246.94, // B3
+    293.66, // D4
+    392.00, // G4
+    246.94, // B3
+    196.00, // G3
+
+    // 8. A Major (Resolving dominant)
+    110.00, // A2 (Bass)
+    164.81, // E3
+    220.00, // A3
+    277.18, // C#4
+    329.63, // E4
+    440.00, // A4
+    277.18, // C#4
+    220.00, // A3
   ];
 
   // ASMR ambient states

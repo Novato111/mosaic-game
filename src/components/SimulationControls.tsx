@@ -83,6 +83,8 @@ interface SimulationControlsProps {
   onBallGrowthMultiplierChange: (multiplier: number) => void;
   maxBallRadius: number;
   onMaxBallRadiusChange: (max: number) => void;
+  startEmpty: boolean;
+  onStartEmptyChange: (startEmpty: boolean) => void;
 }
 
 export const SimulationControls: React.FC<SimulationControlsProps> = ({
@@ -141,7 +143,9 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   ballGrowthMultiplier,
   onBallGrowthMultiplierChange,
   maxBallRadius,
-  onMaxBallRadiusChange
+  onMaxBallRadiusChange,
+  startEmpty,
+  onStartEmptyChange
 }) => {
 
   const formatTime = (secs: number) => {
@@ -306,6 +310,26 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             );
           })}
         </div>
+      </div>
+
+      {/* START EMPTY / PAINT MODE */}
+      <div className="flex items-center justify-between p-3.5 bg-zinc-950/40 rounded-xl border border-zinc-800/40">
+        <div className="space-y-0.5">
+          <span className="text-xs font-bold text-zinc-300 block">Paint Mode (Start Empty)</span>
+          <span className="text-[10px] text-zinc-500 block leading-tight">Start with empty circle. Mosaic ball paints tiles; white ball clears.</span>
+        </div>
+        <button
+          onClick={() => onStartEmptyChange(!startEmpty)}
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            startEmpty ? 'bg-emerald-500' : 'bg-zinc-800'
+          }`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              startEmpty ? 'translate-x-4' : 'translate-x-0'
+            }`}
+          />
+        </button>
       </div>
 
       {/* PROGRESSION CONTROLS */}
@@ -597,14 +621,14 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
         {/* Top hook input */}
         <div className="space-y-1.5">
           <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
-            Top Bold Hook Question (ALL CAPS)
+            Top Bold Hook Question (ALL CAPS, multi-line supported)
           </label>
-          <input 
-            type="text"
+          <textarea 
+            rows={3}
             value={topHookText}
             onChange={(e) => onTopHookTextChange(e.target.value)}
             placeholder="e.g. CAN IT HIT 100%?"
-            className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white px-3 py-2 rounded-xl focus:border-zinc-500 focus:outline-none transition font-sans"
+            className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white px-3 py-2 rounded-xl focus:border-zinc-500 focus:outline-none transition font-sans resize-none"
           />
         </div>
 

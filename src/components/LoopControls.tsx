@@ -392,12 +392,12 @@ export const LoopControls: React.FC<LoopControlsProps> = (props) => {
         {/* Text Captions */}
         <div className="space-y-3">
           <div className="space-y-1">
-            <span className="text-[10px] text-zinc-500 uppercase font-bold">Top Hook Text Caption</span>
-            <input
-              type="text"
+            <span className="text-[10px] text-zinc-500 uppercase font-bold">Top Hook Text Caption (multi-line supported)</span>
+            <textarea
+              rows={3}
               value={topHookText}
               onChange={(e) => onTopHookTextChange(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500 resize-none font-sans"
               placeholder="e.g. CAN WE HIT 100%?"
             />
           </div>

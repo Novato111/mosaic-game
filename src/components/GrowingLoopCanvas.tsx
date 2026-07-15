@@ -569,7 +569,13 @@ export const GrowingLoopCanvas = forwardRef<GrowingLoopCanvasRef, GrowingLoopCan
         ctx.textAlign = 'center';
         ctx.shadowBlur = 8;
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.fillText(topHookText.toUpperCase(), CENTER_X, 220);
+        
+        const topTextLines = topHookText.toUpperCase().split('\n');
+        const loopLineHeight = 60;
+        const loopStartY = 220 - ((topTextLines.length - 1) * loopLineHeight) / 2;
+        topTextLines.forEach((line, idx) => {
+          ctx.fillText(line.trim(), CENTER_X, loopStartY + idx * loopLineHeight);
+        });
 
         // Bottom comments panel / Satisfaction indicator
         const curCleared = state.current.clearedTiles;

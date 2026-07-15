@@ -40,6 +40,7 @@ interface ShortsCanvasProps {
   ballGrowthType?: 'additive' | 'multiplicative';
   ballGrowthMultiplier?: number;
   maxBallRadius?: number;
+  startEmpty?: boolean;
 }
 
 export interface ShortsCanvasRef {
@@ -258,7 +259,8 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
   ballGrowthAmount = 1.5,
   ballGrowthType = 'additive',
   ballGrowthMultiplier = 1.1,
-  maxBallRadius = 50
+  maxBallRadius = 50,
+  startEmpty = true
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const propsRef = useRef({ topHookText, comments, levelNumber, levelName, levelFont });
@@ -278,6 +280,7 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
     balls: [
       {
         id: Math.random(),
+        type: 'white' as 'white' | 'mosaic',
         x: CENTER_X - 100,
         y: CENTER_Y - 50,
         vx: 4.5,
@@ -296,6 +299,22 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       width: 22,
       flashIntensity: 0,
       color: palette.boosterColor
+    },
+    boosterPad1: {
+      angle: 0, // angular center position [0, 2PI]
+      speed: 0.006, // speed of movement around the rim
+      arcLength: 0.85, // radians, approx 49 degrees
+      width: 22,
+      flashIntensity: 0,
+      color: '#00e5ff' // Neon cyan/white
+    },
+    boosterPad2: {
+      angle: Math.PI, // Start directly opposite!
+      speed: 0.006, // speed of movement around the rim
+      arcLength: 0.85, // radians, approx 49 degrees
+      width: 22,
+      flashIntensity: 0,
+      color: '#ff007f' // Neon pink/magenta
     },
     tiles: [] as Tile[],
     particles: [] as Particle[],
@@ -374,6 +393,7 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
 
     state.balls = [{
       id: Math.random(),
+      type: 'white' as 'white' | 'mosaic',
       x: bx,
       y: by,
       vx: bvx,
@@ -385,6 +405,12 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       color: '#ffffff'
     }];
     state.ball = state.balls[0];
+    
+    // Reset booster pads
+    state.boosterPad1.angle = 0;
+    state.boosterPad2.angle = Math.PI;
+    state.boosterPad1.flashIntensity = 0;
+    state.boosterPad2.flashIntensity = 0;
     
     generateTiles();
   };
@@ -442,7 +468,11 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
         // Add tile if its bounding area is fully or mostly within the circle
         if (distToCenter + size/2 < BOUNDARY_RADIUS) {
           const color = getTileColorForPalette(palette, dx, dy, BOUNDARY_RADIUS);
-          tiles.push(new Tile(rowIdx, colIdx, x, y, size, color));
+          const t = new Tile(rowIdx, colIdx, x, y, size, color);
+          if (startEmpty) {
+            t.active = false;
+          }
+          tiles.push(t);
         }
         rowIdx++;
       }
@@ -481,10 +511,10 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
     state.totalTilesCount = tiles.length;
   };
 
-  // Restart and re-generate on density or palette changes (proper reset)
+  // Restart and re-generate on density, palette, or startEmpty changes (proper reset)
   useEffect(() => {
     restart();
-  }, [tileDensity, palette]);
+  }, [tileDensity, palette, startEmpty]);
 
   // Dynamically update ball radius when initial radius changes
   useEffect(() => {
@@ -536,10 +566,19 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
   }, [manualSpeedMultiplier, autoProgression, selectedPhase]);
 
   // Trigger the booster kick for a single ball (including splitting into multiple balls)
-  const triggerBoostEffectForBall = (ball: any, manual: boolean = false, nx?: number, ny?: number) => {
+  const triggerBoostEffectForBall = (ball: any, manual: boolean = false, nx?: number, ny?: number, boosterType?: 'booster1' | 'booster2') => {
     const state = stateRef.current;
     state.impactCount++;
-    state.boosterPad.flashIntensity = 0.5; // simple plain flash
+    
+    if (boosterType === 'booster1') {
+      state.boosterPad1.flashIntensity = 0.5;
+    } else if (boosterType === 'booster2') {
+      state.boosterPad2.flashIntensity = 0.5;
+    } else {
+      state.boosterPad1.flashIntensity = 0.5;
+      state.boosterPad2.flashIntensity = 0.5;
+    }
+    
     ball.impactGlow = 0.8;
     state.screenShake = manual ? 3.5 : 5.0; // subtle snap shake
     
@@ -568,23 +607,23 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
         // Hitting the booster pad changes the ball's direction completely!
         const inwardAngle = Math.atan2(-ny, -nx);
         
-        // Multiply: split and spawn another ball if we are below the active limit
-        if (state.balls.length < 32 && !manual) {
+        // Multiply: split and spawn another ball without any limit
+        if (!manual) {
           const angle1 = inwardAngle - 0.22; // Slightly left
           const angle2 = inwardAngle + 0.22; // Slightly right
           
           ball.vx = Math.cos(angle1) * newSpeed;
           ball.vy = Math.sin(angle1) * newSpeed;
 
-          // Selecting a relaxing pastel color for the newly generated ball
-          const colors = [
-            '#ffffff', '#ffb3ba', '#bae1ff', '#baffc9', '#ffffba', '#ffb3ff', '#baffff',
-            palette.glowColor, palette.boosterColor
-          ].filter(Boolean);
-          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+          // Determine the spawned ball type based on which booster we hit
+          const spawnedType = boosterType === 'booster2' ? 'mosaic' : 'white';
+          const spawnedColor = spawnedType === 'mosaic' 
+            ? (palette.boosterColor || palette.glowColor || '#ff00aa') 
+            : '#ffffff';
 
           const newBall = {
             id: Math.random(),
+            type: spawnedType,
             x: ball.x,
             y: ball.y,
             vx: Math.cos(angle2) * newSpeed,
@@ -593,7 +632,7 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
             glowIntensity: 15,
             impactGlow: 0.8,
             trail: [] as TrailNode[],
-            color: randomColor
+            color: spawnedColor
           };
           state.balls.push(newBall);
         } else {
@@ -607,15 +646,6 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
         ball.vx = (ball.vx / curSpeed) * newSpeed;
         ball.vy = (ball.vy / curSpeed) * newSpeed;
       }
-    }
-
-    // Emit subtle and elegant particles opposite to ball trajectory
-    const ballAngle = Math.atan2(ball.vy, ball.vx);
-    for (let i = 0; i < 12; i++) {
-      const p = new Particle(ball.x, ball.y, ball.color || palette.boosterColor, true);
-      p.vx = -Math.cos(ballAngle + (Math.random() - 0.5) * 0.8) * (Math.random() * 6 + 2);
-      p.vy = -Math.sin(ballAngle + (Math.random() - 0.5) * 0.8) * (Math.random() * 6 + 2);
-      state.particles.push(p);
     }
   };
 
@@ -703,8 +733,12 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       let calculatedPhase: TimelinePhase = 'slow';
 
       if (!isPaused) {
-        // Trigger rebuild when 100% cleared
-        if (displayActiveCount === 0 && state.totalTilesCount > 0 && !state.rebuildAnim.active) {
+        // Trigger rebuild when target is reached (100% cleared if not startEmpty, or 100% painted if startEmpty)
+        const isTargetReached = startEmpty
+          ? (displayActiveCount === state.totalTilesCount && state.totalTilesCount > 0)
+          : (displayActiveCount === 0 && state.totalTilesCount > 0);
+
+        if (isTargetReached && !state.rebuildAnim.active) {
           state.rebuildAnim.active = true;
           state.rebuildAnim.timer = 0;
           (state.rebuildAnim as any).hasPlayedSound = false;
@@ -723,15 +757,16 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
             state.rebuildAnim.active = false;
             state.rebuildAnim.timer = 0;
             
-            // Activate all tiles fully and reset scale
+            // Set tiles active state based on startEmpty mode
             state.tiles.forEach(tile => {
-              tile.active = true;
-              tile.appearScale = 1.0;
+              tile.active = !startEmpty;
+              tile.appearScale = startEmpty ? 0 : 1.0;
             });
             
             // Reset to a single ball
             state.balls = [{
               id: Math.random(),
+              type: 'white' as 'white' | 'mosaic',
               x: CENTER_X + (Math.random() - 0.5) * 120,
               y: CENTER_Y - 260,
               vx: 0,
@@ -761,7 +796,8 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
             state.particles = state.particles.filter(p => p.alpha > 0);
 
             // Decays scaled by timeMultiplier
-            boosterPad.flashIntensity *= Math.pow(0.92, timeMultiplier);
+            state.boosterPad1.flashIntensity *= Math.pow(0.92, timeMultiplier);
+            state.boosterPad2.flashIntensity *= Math.pow(0.92, timeMultiplier);
             state.balls.forEach(b => {
               b.impactGlow *= Math.pow(0.94, timeMultiplier);
             });
@@ -786,20 +822,25 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
                 const tileAnimT = (timer - 0.5 - tileDelay) / 0.6; // 600ms local spring-open duration
 
                 if (tileAnimT <= 0) {
-                  tile.active = false;
-                  tile.appearScale = 0;
+                  tile.active = startEmpty; // remains active if startEmpty, waiting to shrink
+                  tile.appearScale = startEmpty ? 1.0 : 0;
                 } else {
-                  tile.active = true;
                   const clampedT = Math.min(1.0, tileAnimT);
-                  tile.appearScale = easeOutBack(clampedT);
+                  if (startEmpty) {
+                    tile.appearScale = 1.0 - easeOutBack(clampedT);
+                    tile.active = tile.appearScale > 0.01;
+                  } else {
+                    tile.active = true;
+                    tile.appearScale = easeOutBack(clampedT);
+                  }
                 }
               });
             } else {
-              // First 0.5s: completely frozen pause with all tiles cleared
+              // First 0.5s: completely frozen pause in their starting state
               (state.rebuildAnim as any).hasPlayedSound = false;
               state.tiles.forEach(tile => {
-                tile.active = false;
-                tile.appearScale = 0;
+                tile.active = startEmpty; // if startEmpty, they are active during pause; if not, they are inactive
+                tile.appearScale = startEmpty ? 1.0 : 0;
               });
             }
           }
@@ -906,20 +947,34 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
                 let collisionAngle = Math.atan2(dy, dx);
                 if (collisionAngle < 0) collisionAngle += Math.PI * 2;
 
-                // Check if collision hit the booster pad
-                let isBoosterHit = false;
-                const boosterHalfArc = boosterPad.arcLength / 2;
-                const bMin = (boosterPad.angle - boosterHalfArc + Math.PI * 2) % (Math.PI * 2);
-                const bMax = (boosterPad.angle + boosterHalfArc + Math.PI * 2) % (Math.PI * 2);
+                // Check if collision hit the booster pad 1 (White ball booster)
+                let isBooster1Hit = false;
+                const booster1HalfArc = state.boosterPad1.arcLength / 2;
+                const b1Min = (state.boosterPad1.angle - booster1HalfArc + Math.PI * 2) % (Math.PI * 2);
+                const b1Max = (state.boosterPad1.angle + booster1HalfArc + Math.PI * 2) % (Math.PI * 2);
 
-                if (bMin < bMax) {
-                  isBoosterHit = collisionAngle >= bMin && collisionAngle <= bMax;
+                if (b1Min < b1Max) {
+                  isBooster1Hit = collisionAngle >= b1Min && collisionAngle <= b1Max;
                 } else {
-                  isBoosterHit = collisionAngle >= bMin || collisionAngle <= bMax;
+                  isBooster1Hit = collisionAngle >= b1Min || collisionAngle <= b1Max;
                 }
 
-                if (isBoosterHit) {
-                  triggerBoostEffectForBall(ball, false, nx, ny);
+                // Check if collision hit the booster pad 2 (Mosaic ball booster)
+                let isBooster2Hit = false;
+                const booster2HalfArc = state.boosterPad2.arcLength / 2;
+                const b2Min = (state.boosterPad2.angle - booster2HalfArc + Math.PI * 2) % (Math.PI * 2);
+                const b2Max = (state.boosterPad2.angle + booster2HalfArc + Math.PI * 2) % (Math.PI * 2);
+
+                if (b2Min < b2Max) {
+                  isBooster2Hit = collisionAngle >= b2Min && collisionAngle <= b2Max;
+                } else {
+                  isBooster2Hit = collisionAngle >= b2Min || collisionAngle <= b2Max;
+                }
+
+                if (isBooster1Hit) {
+                  triggerBoostEffectForBall(ball, false, nx, ny, 'booster1');
+                } else if (isBooster2Hit) {
+                  triggerBoostEffectForBall(ball, false, nx, ny, 'booster2');
                 } else {
                   // Standard wall collision: much more subtle vibration cap
                   state.screenShake = Math.min(3.2, ballSpeed / 12);
@@ -927,47 +982,69 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
                   // Play physical pitch based on current ball velocity with 3D stereo panning
                   const pitch = 0.7 + (ballSpeed / 30);
                   audioSynth.playBounce(pitch, ball.x);
-
-                  // Generate sparse particles along rim
-                  for (let i = 0; i < 4; i++) {
-                    const p = new Particle(ball.x, ball.y, ball.color || palette.glowColor, false);
-                    p.vx = -nx * (Math.random() * 4 + 1) + (Math.random() - 0.5) * 3;
-                    p.vy = -ny * (Math.random() * 4 + 1) + (Math.random() - 0.5) * 3;
-                    state.particles.push(p);
-                  }
                 }
               }
             }
 
-            // 3. MOSAIC TILE SCRATCH MECHANIC
+            // 3. MOSAIC TILE SCRATCH OR REGENERATE MECHANIC
             const scratchRadius = ball.radius * scratchRadiusFactor;
-            for (let i = 0; i < state.tiles.length; i++) {
-              const tile = state.tiles[i];
-              if (!tile.active) continue;
+            
+            if (ball.type === 'mosaic') {
+              // Regenerate tiles under its tail/position!
+              for (let i = 0; i < state.tiles.length; i++) {
+                const tile = state.tiles[i];
+                if (tile.active) continue; // Only process inactive tiles
 
-              // Quick distance check
-              const tdx = ball.x - tile.x;
-              const tdy = ball.y - tile.y;
-              const tileDistSq = tdx * tdx + tdy * tdy;
+                // Distance check
+                const tdx = ball.x - tile.x;
+                const tdy = ball.y - tile.y;
+                const tileDistSq = tdx * tdx + tdy * tdy;
 
-              if (tileDistSq < scratchRadius * scratchRadius) {
-                if (tile.isTNT) {
-                  if (!tile.isPrimed) {
-                    tile.isPrimed = true;
-                    tile.fuseTimer = 1.0; // 1 second fuse
-                    audioSynth.playTntFuse();
-                  }
-                } else {
-                  tile.active = false;
+                if (tileDistSq < scratchRadius * scratchRadius) {
+                  tile.active = true;
+                  tile.appearScale = 1.0;
                   
-                  // Generate ASMR scrape spark particles
-                  const sparkCount = state.phase === 'slow' ? 2 : state.phase === 'medium' ? 3 : 5;
-                  for (let s = 0; s < sparkCount; s++) {
-                    state.particles.push(new Particle(tile.x, tile.y, tile.color, false));
+                  // Spark effects
+                  const sparkColors = [tile.color, palette.boosterColor || '#ff00aa', '#ffffff', palette.glowColor || '#00ffff'];
+                  for (let s = 0; s < 2; s++) {
+                    const rc = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+                    state.particles.push(new Particle(tile.x, tile.y, rc, false));
                   }
 
-                  // Play granular click sound
+                  // Sound feedback
                   audioSynth.playScratch();
+                }
+              }
+            } else {
+              // Standard ball: scratch and destroy tiles
+              for (let i = 0; i < state.tiles.length; i++) {
+                const tile = state.tiles[i];
+                if (!tile.active) continue;
+
+                // Quick distance check
+                const tdx = ball.x - tile.x;
+                const tdy = ball.y - tile.y;
+                const tileDistSq = tdx * tdx + tdy * tdy;
+
+                if (tileDistSq < scratchRadius * scratchRadius) {
+                  if (tile.isTNT) {
+                    if (!tile.isPrimed) {
+                      tile.isPrimed = true;
+                      tile.fuseTimer = 1.0; // 1 second fuse
+                      audioSynth.playTntFuse();
+                    }
+                  } else {
+                    tile.active = false;
+                    
+                    // Generate ASMR scrape spark particles
+                    const sparkCount = state.phase === 'slow' ? 2 : state.phase === 'medium' ? 3 : 5;
+                    for (let s = 0; s < sparkCount; s++) {
+                      state.particles.push(new Particle(tile.x, tile.y, tile.color, false));
+                    }
+
+                    // Play granular click sound
+                    audioSynth.playScratch();
+                  }
                 }
               }
             }
@@ -1047,10 +1124,12 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
 
         // Update booster pad angle (rotate slowly around the rim)
         const boosterSpeed = (state.phase === 'slow' ? 0.004 : state.phase === 'medium' ? 0.007 : state.phase === 'fast' ? 0.012 : 0.018) * timeMultiplier;
-        boosterPad.angle = (boosterPad.angle + boosterSpeed) % (Math.PI * 2);
+        state.boosterPad1.angle = (state.boosterPad1.angle + boosterSpeed) % (Math.PI * 2);
+        state.boosterPad2.angle = (state.boosterPad1.angle + Math.PI) % (Math.PI * 2); // Directly opposite!
 
         // Decays scaled by timeMultiplier
-        boosterPad.flashIntensity *= Math.pow(0.92, timeMultiplier);
+        state.boosterPad1.flashIntensity *= Math.pow(0.92, timeMultiplier);
+        state.boosterPad2.flashIntensity *= Math.pow(0.92, timeMultiplier);
         state.balls.forEach(b => {
           b.impactGlow *= Math.pow(0.94, timeMultiplier);
         });
@@ -1165,22 +1244,99 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       ctx.stroke();
       ctx.shadowBlur = 0; // reset
 
-      // Layer 3: Booster Pad Arc attached inside the rim - redesigned to be bigger and thicker
+      // Layer 3: Two Rotating Booster Pads inside the rim
+      
+      // Pad 1: White Ball Booster
       ctx.save();
-      const flashHex = palette.boosterColor;
-      ctx.strokeStyle = flashHex;
-      ctx.lineWidth = 14 + (boosterPad.flashIntensity * 8); // Thicker, more prominent
-      ctx.shadowBlur = 8 + (boosterPad.flashIntensity * 12); // Extra ambient glowing bloom
-      ctx.shadowColor = flashHex;
+      const pad1Color = palette.boosterColor || '#00e5ff';
+      const pad1Angle = state.boosterPad1.angle;
+      const pad1Arc = state.boosterPad1.arcLength;
+      const flash1 = state.boosterPad1.flashIntensity;
+
+      // 1. Deep Neon Ambient Aura (Layer 1)
+      ctx.strokeStyle = pad1Color;
+      ctx.lineWidth = 26 + (flash1 * 16);
+      ctx.shadowBlur = 15 + (flash1 * 25);
+      ctx.shadowColor = pad1Color;
+      ctx.globalAlpha = 0.15;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.arc(
-        CENTER_X,
-        CENTER_Y,
-        BOUNDARY_RADIUS - 9, // Sits beautifully inside the outer rim
-        boosterPad.angle - boosterPad.arcLength / 2,
-        boosterPad.angle + boosterPad.arcLength / 2
-      );
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad1Angle - pad1Arc / 2, pad1Angle + pad1Arc / 2);
+      ctx.stroke();
+
+      // 2. Bright Mid-Track (Layer 2)
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 14 + (flash1 * 8);
+      ctx.shadowBlur = 0; // reset shadow for performance
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad1Angle - pad1Arc / 2, pad1Angle + pad1Arc / 2);
+      ctx.stroke();
+
+      // 3. Hot White Core Line (Layer 3)
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4 + (flash1 * 2);
+      ctx.globalAlpha = 1.0;
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad1Angle - pad1Arc / 2, pad1Angle + pad1Arc / 2);
+      ctx.stroke();
+
+      // 4. Futuristic Flowing Energy Dash (Layer 4)
+      ctx.strokeStyle = pad1Color;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 10]);
+      ctx.lineDashOffset = -performance.now() * 0.05; // flowing motion
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 22, pad1Angle - pad1Arc / 2, pad1Angle + pad1Arc / 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Pad 2: Mosaic Ball Booster
+      ctx.save();
+      // Contrast color for Pad 2: use glowColor if boosterColor is already used, or one of the palette colors, otherwise neon pink
+      const pad2Color = (palette.glowColor && palette.glowColor !== palette.boosterColor) 
+        ? palette.glowColor 
+        : (palette.colors && palette.colors[0] && palette.colors[0] !== palette.boosterColor)
+          ? palette.colors[0]
+          : '#ff00aa';
+      
+      const pad2Angle = state.boosterPad2.angle;
+      const pad2Arc = state.boosterPad2.arcLength;
+      const flash2 = state.boosterPad2.flashIntensity;
+
+      // 1. Deep Neon Ambient Aura (Layer 1)
+      ctx.strokeStyle = pad2Color;
+      ctx.lineWidth = 26 + (flash2 * 16);
+      ctx.shadowBlur = 15 + (flash2 * 25);
+      ctx.shadowColor = pad2Color;
+      ctx.globalAlpha = 0.15;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad2Angle - pad2Arc / 2, pad2Angle + pad2Arc / 2);
+      ctx.stroke();
+
+      // 2. Bright Mid-Track (Layer 2)
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 14 + (flash2 * 8);
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad2Angle - pad2Arc / 2, pad2Angle + pad2Arc / 2);
+      ctx.stroke();
+
+      // 3. Hot White Core Line (Layer 3)
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4 + (flash2 * 2);
+      ctx.globalAlpha = 1.0;
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 9, pad2Angle - pad2Arc / 2, pad2Angle + pad2Arc / 2);
+      ctx.stroke();
+
+      // 4. Futuristic Flowing Energy Dash (Layer 4)
+      ctx.strokeStyle = pad2Color;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 10]);
+      ctx.lineDashOffset = -performance.now() * 0.05; // flowing motion
+      ctx.beginPath();
+      ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS - 22, pad2Angle - pad2Arc / 2, pad2Angle + pad2Arc / 2);
       ctx.stroke();
       ctx.restore();
 
@@ -1214,9 +1370,14 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
                 const idxRatio = (i + t) / trailLen;
                 
                 // Extremely faint trail using ball color (or white)
-                const opacity = idxRatio * 0.08;
+                const opacity = idxRatio * 0.12;
                 ctx.globalAlpha = opacity;
-                ctx.fillStyle = ball.color || '#ffffff';
+                if (ball.type === 'mosaic') {
+                  const hue = (performance.now() / 12 + idxRatio * 180) % 360;
+                  ctx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+                } else {
+                  ctx.fillStyle = ball.color || '#ffffff';
+                }
                 
                 // Tapered size: tapers down to 10% at the tail, up to 90% at the front
                 const currentSize = p1.radius * (0.10 + idxRatio * 0.80);
@@ -1234,29 +1395,63 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       if (!state.rebuildAnim.active) {
         state.balls.forEach(ball => {
           ctx.save();
-          ctx.fillStyle = ball.color || '#ffffff';
-          
-          // Clean and plain without glow/shadow
           ctx.shadowBlur = 0;
           
           const scaleRad = ball.radius * (1.0 + ball.impactGlow * 0.12);
           const speedThreshold = 10;
           const ballSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
 
+          // Build path for the ball
+          ctx.beginPath();
           if (ballSpeed > speedThreshold) {
             // High speed stretch: draw as a beautiful capsule along the velocity vector
             const stretchFactor = Math.min(0.4, (ballSpeed - speedThreshold) * 0.01); // subtle capped stretch
             const dx = (ball.vx / ballSpeed) * scaleRad * stretchFactor;
             const dy = (ball.vy / ballSpeed) * scaleRad * stretchFactor;
             
-            ctx.beginPath();
             ctx.arc(ball.x - dx, ball.y - dy, scaleRad, 0, Math.PI * 2);
             ctx.arc(ball.x, ball.y, scaleRad, 0, Math.PI * 2);
-            ctx.fill();
           } else {
             // Standard circle
-            ctx.beginPath();
             ctx.arc(ball.x, ball.y, scaleRad, 0, Math.PI * 2);
+          }
+
+          if (ball.type === 'mosaic') {
+            ctx.save();
+            ctx.clip(); // Clip everything to the ball path!
+
+            // Fill a black base first
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(ball.x - scaleRad, ball.y - scaleRad, scaleRad * 2, scaleRad * 2);
+
+             // Draw a grid of 4x4 colorful mosaic cells inside the ball
+             const gridSize = 4;
+             const cellSize = (scaleRad * 2) / gridSize;
+             const offsetTime = performance.now() / 240; // rotate colors
+             
+             // Get colors from current palette
+             const colors = palette.colors.length >= 3 
+               ? palette.colors 
+               : [...palette.colors, '#ffffff', '#111111'];
+
+             for (let r = 0; r < gridSize; r++) {
+               for (let c = 0; c < gridSize; c++) {
+                 const colorIndex = (r * gridSize + c + Math.floor(offsetTime)) % colors.length;
+                 ctx.fillStyle = colors[colorIndex];
+                 
+                 const cx = ball.x - scaleRad + c * cellSize;
+                 const cy = ball.y - scaleRad + r * cellSize;
+                 ctx.fillRect(cx + 0.5, cy + 0.5, cellSize - 1, cellSize - 1);
+               }
+             }
+             ctx.restore();
+ 
+             // Draw a matching themed border around the mosaic ball
+             ctx.strokeStyle = palette.boosterColor || palette.glowColor || '#ff00aa';
+             ctx.lineWidth = 3;
+             ctx.stroke();
+          } else {
+            ctx.fillStyle = ball.color || '#ffffff';
             ctx.fill();
           }
           ctx.restore();
@@ -1350,6 +1545,7 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       ctx.shadowOffsetY = 4;
       
       const topText = (propsRef.current.topHookText || "CAN IT HIT 100%?").toUpperCase();
+      const lines = topText.split('\n');
       const maxHookWidth = 780;
       
       let fontName = '"Bebas Neue", sans-serif';
@@ -1363,11 +1559,22 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       }
       
       ctx.font = `${fontWeight} ${hookFontSize}px ${fontName}`;
-      let measuredHook = ctx.measureText(topText).width;
+      
+      // Determine width of the longest line to calculate layout scale
+      const getLongestLineWidth = () => {
+        let maxW = 0;
+        lines.forEach(line => {
+          const w = ctx.measureText(line.trim()).width;
+          if (w > maxW) maxW = w;
+        });
+        return maxW;
+      };
+
+      let measuredHook = getLongestLineWidth();
       while (measuredHook > maxHookWidth && hookFontSize > 14) {
         hookFontSize -= 2;
         ctx.font = `${fontWeight} ${hookFontSize}px ${fontName}`;
-        measuredHook = ctx.measureText(topText).width;
+        measuredHook = getLongestLineWidth();
       }
       
       // Translate to center of hook text, apply breathing scale, and draw
@@ -1380,7 +1587,11 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
         const spacing = 16;
         const totalContentWidth = iconSize + spacing + measuredHook;
         const boxWidth = totalContentWidth + 60; // 30px padding on each side
-        const boxHeight = 76;
+        
+        // Multi-line height adjustment for box
+        const numLines = lines.length;
+        const textLineHeight = hookFontSize * 1.35;
+        const boxHeight = Math.max(76, numLines * textLineHeight + 40);
         
         ctx.save();
         ctx.shadowBlur = 0; // standard flat minecraft style
@@ -1427,14 +1638,23 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
         ctx.fillRect(startX + pS * 5, iconY + pS * 2, pS, pS);
         ctx.fillRect(startX + pS * 7, iconY + pS, pS, pS);
 
-        // Draw the text to the right of the icon
+        // Draw the text to the right of the icon, centering lines vertically
         ctx.fillStyle = '#55ff55'; // Vibrant Minecraft green text
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(topText, startX + iconSize + spacing, 0);
+        
+        const startY = -((numLines - 1) * textLineHeight) / 2;
+        lines.forEach((line, idx) => {
+          ctx.fillText(line.trim(), startX + iconSize + spacing, startY + idx * textLineHeight);
+        });
+        
         ctx.restore();
       } else {
-        ctx.fillText(topText, 0, 0);
+        const lineHeight = hookFontSize * 1.15;
+        const startY = -((lines.length - 1) * lineHeight) / 2;
+        lines.forEach((line, idx) => {
+          ctx.fillText(line.trim(), 0, startY + idx * lineHeight);
+        });
       }
       
       ctx.restore();
@@ -1510,7 +1730,83 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
       }
       ctx.restore();
 
-      // 3. Render Reaction Comment Live at the old place of percent (Y = 1360–1460, midpoint: 1420)
+      // 2.5. Render Active Balls Pill Badge (Y = 515)
+      ctx.save();
+      const ballCount = state.balls.length;
+      const badgeText = `${ballCount} BALL${ballCount !== 1 ? 'S' : ''}`;
+
+      if (palette.key === 'minecraft') {
+        ctx.font = '400 14px "Press Start 2P", monospace';
+        const textWidth = ctx.measureText(badgeText).width;
+        const paddingX = 14;
+        const paddingY = 8;
+        const boxW = textWidth + paddingX * 2;
+        const boxH = 14 + paddingY * 2;
+
+        ctx.save();
+        ctx.translate(CENTER_X, 510);
+        
+        // Background box
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+        
+        // Green border
+        ctx.strokeStyle = '#5db332';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
+
+        // Text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, 0, 0);
+        ctx.restore();
+      } else {
+        // Premium Neon Pill Badge
+        ctx.font = '800 20px "Orbitron", "Inter", sans-serif';
+        const textW = ctx.measureText(badgeText).width;
+        const dotSize = 6;
+        const dotSpacing = 12;
+        const totalW = dotSize + dotSpacing + textW;
+        
+        const paddingX = 22;
+        const paddingY = 10;
+        const badgeW = totalW + paddingX * 2;
+        const badgeH = 20 + paddingY * 2;
+
+        ctx.save();
+        ctx.translate(CENTER_X, 520);
+
+        // Draw glowing glass pill background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.strokeStyle = themeColor;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = themeColor;
+        
+        // Draw rounded rect
+        ctx.beginPath();
+        ctx.roundRect(-badgeW / 2, -badgeH / 2, badgeW, badgeH, badgeH / 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw a small glowing pulse indicator dot inside
+        ctx.fillStyle = themeColor;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        const startX = -totalW / 2;
+        ctx.arc(startX + dotSize / 2, 0, dotSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw Badge Text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0; // reset shadow for crisp text
+        ctx.fillText(badgeText, startX + dotSize + dotSpacing, 0);
+        ctx.restore();
+      }
+      ctx.restore();
       if (state.currentCommentText) {
         ctx.save();
         ctx.textAlign = 'center';
@@ -1626,7 +1922,7 @@ export const ShortsCanvas = forwardRef<ShortsCanvasRef, ShortsCanvasProps>(({
     return () => {
       cancelAnimationFrame(animFrameId);
     };
-  }, [palette, tileDensity, autoProgression, selectedPhase, scratchRadiusFactor, boosterPower, isPaused, resolutionScale]);
+  }, [palette, tileDensity, autoProgression, selectedPhase, scratchRadiusFactor, boosterPower, isPaused, resolutionScale, startEmpty]);
 
   // Interpolates ball glow
   const ballGlowColor = (baseHex: string, glowHex: string, intensity: number): string => {
